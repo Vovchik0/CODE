@@ -2,7 +2,7 @@
 gui
 ===
 
-Графический интерфейс приложения на PyQt4: современная тёмная тема, поля
+Графический интерфейс приложения на Qt (PyQt5/PyQt4): современная тёмная тема, поля
 ввода параметров, выпадающий список версий Minecraft, цветной журнал событий,
 блок статистики и кнопки управления (Старт / Стоп / Очистить лог / Сохранить
 отчёт).
@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import time
 
-from PyQt4 import QtCore, QtGui
+from .qtcompat import QtCore, QtWidgets
 
 from . import logger as log_module
 from . import reports
@@ -95,7 +95,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 """
 
 
-class MainWindow(QtGui.QWidget):
+class MainWindow(QtWidgets.QWidget):
     """Главное окно приложения."""
 
     def __init__(self, parent=None):
@@ -111,30 +111,30 @@ class MainWindow(QtGui.QWidget):
 
     # -- построение интерфейса -------------------------------------------
     def _build_ui(self) -> None:
-        root = QtGui.QHBoxLayout(self)
+        root = QtWidgets.QHBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
         root.setSpacing(12)
 
         root.addLayout(self._build_left_panel(), 0)
         root.addLayout(self._build_right_panel(), 1)
 
-    def _build_left_panel(self) -> QtGui.QVBoxLayout:
-        left = QtGui.QVBoxLayout()
+    def _build_left_panel(self) -> QtWidgets.QVBoxLayout:
+        left = QtWidgets.QVBoxLayout()
         left.setSpacing(10)
 
         # --- Группа параметров подключения ---
-        conn_group = QtGui.QGroupBox("Параметры сервера")
-        form = QtGui.QFormLayout(conn_group)
+        conn_group = QtWidgets.QGroupBox("Параметры сервера")
+        form = QtWidgets.QFormLayout(conn_group)
         form.setSpacing(8)
 
-        self.host_edit = QtGui.QLineEdit("127.0.0.1")
+        self.host_edit = QtWidgets.QLineEdit("127.0.0.1")
         self.host_edit.setPlaceholderText("IP или домен сервера")
 
-        self.port_spin = QtGui.QSpinBox()
+        self.port_spin = QtWidgets.QSpinBox()
         self.port_spin.setRange(1, 65535)
         self.port_spin.setValue(25565)
 
-        self.version_combo = QtGui.QComboBox()
+        self.version_combo = QtWidgets.QComboBox()
         for label in MINECRAFT_VERSIONS:
             self.version_combo.addItem(
                 "%s  (протокол %d)" % (label, MINECRAFT_VERSIONS[label]), label
@@ -149,28 +149,28 @@ class MainWindow(QtGui.QWidget):
         left.addWidget(conn_group)
 
         # --- Группа параметров нагрузки ---
-        load_group = QtGui.QGroupBox("Параметры нагрузки")
-        load_form = QtGui.QFormLayout(load_group)
+        load_group = QtWidgets.QGroupBox("Параметры нагрузки")
+        load_form = QtWidgets.QFormLayout(load_group)
         load_form.setSpacing(8)
 
-        self.clients_spin = QtGui.QSpinBox()
+        self.clients_spin = QtWidgets.QSpinBox()
         self.clients_spin.setRange(1, 100000)
         self.clients_spin.setValue(20)
 
-        self.delay_spin = QtGui.QDoubleSpinBox()
+        self.delay_spin = QtWidgets.QDoubleSpinBox()
         self.delay_spin.setRange(0.0, 60.0)
         self.delay_spin.setSingleStep(0.05)
         self.delay_spin.setDecimals(2)
         self.delay_spin.setValue(0.10)
         self.delay_spin.setSuffix(" c")
 
-        self.hold_spin = QtGui.QDoubleSpinBox()
+        self.hold_spin = QtWidgets.QDoubleSpinBox()
         self.hold_spin.setRange(0.0, 3600.0)
         self.hold_spin.setDecimals(1)
         self.hold_spin.setValue(5.0)
         self.hold_spin.setSuffix(" c")
 
-        self.prefix_edit = QtGui.QLineEdit("LoadBot")
+        self.prefix_edit = QtWidgets.QLineEdit("LoadBot")
         self.prefix_edit.setMaxLength(16)
         self.prefix_edit.setPlaceholderText("Префикс ника")
 
@@ -181,18 +181,18 @@ class MainWindow(QtGui.QWidget):
         left.addWidget(load_group)
 
         # --- Группа Ramp-Up ---
-        ramp_group = QtGui.QGroupBox("Постепенное наращивание (Ramp-Up)")
-        ramp_form = QtGui.QFormLayout(ramp_group)
+        ramp_group = QtWidgets.QGroupBox("Постепенное наращивание (Ramp-Up)")
+        ramp_form = QtWidgets.QFormLayout(ramp_group)
         ramp_form.setSpacing(8)
 
-        self.ramp_check = QtGui.QCheckBox("Включить Ramp-Up")
+        self.ramp_check = QtWidgets.QCheckBox("Включить Ramp-Up")
 
-        self.ramp_steps_spin = QtGui.QSpinBox()
+        self.ramp_steps_spin = QtWidgets.QSpinBox()
         self.ramp_steps_spin.setRange(1, 100)
         self.ramp_steps_spin.setValue(5)
         self.ramp_steps_spin.setEnabled(False)
 
-        self.ramp_interval_spin = QtGui.QDoubleSpinBox()
+        self.ramp_interval_spin = QtWidgets.QDoubleSpinBox()
         self.ramp_interval_spin.setRange(0.0, 60.0)
         self.ramp_interval_spin.setDecimals(1)
         self.ramp_interval_spin.setValue(1.0)
@@ -207,10 +207,10 @@ class MainWindow(QtGui.QWidget):
         left.addWidget(ramp_group)
 
         # --- Кнопки управления ---
-        buttons = QtGui.QHBoxLayout()
-        self.start_button = QtGui.QPushButton("Старт")
+        buttons = QtWidgets.QHBoxLayout()
+        self.start_button = QtWidgets.QPushButton("Старт")
         self.start_button.setObjectName("startButton")
-        self.stop_button = QtGui.QPushButton("Стоп")
+        self.stop_button = QtWidgets.QPushButton("Стоп")
         self.stop_button.setObjectName("stopButton")
         self.stop_button.setEnabled(False)
         self.start_button.clicked.connect(self.start_test)
@@ -222,7 +222,7 @@ class MainWindow(QtGui.QWidget):
         left.addStretch(1)
 
         # Предупреждение о назначении инструмента.
-        notice = QtGui.QLabel(
+        notice = QtWidgets.QLabel(
             "Используйте только на собственных серверах или с явного разрешения."
         )
         notice.setWordWrap(True)
@@ -231,13 +231,13 @@ class MainWindow(QtGui.QWidget):
 
         return left
 
-    def _build_right_panel(self) -> QtGui.QVBoxLayout:
-        right = QtGui.QVBoxLayout()
+    def _build_right_panel(self) -> QtWidgets.QVBoxLayout:
+        right = QtWidgets.QVBoxLayout()
         right.setSpacing(10)
 
         # --- Статистика ---
-        stats_group = QtGui.QGroupBox("Статистика")
-        stats_grid = QtGui.QGridLayout(stats_group)
+        stats_group = QtWidgets.QGroupBox("Статистика")
+        stats_grid = QtWidgets.QGridLayout(stats_group)
         stats_grid.setSpacing(10)
 
         self.stat_success = self._make_stat_widget(stats_grid, 0, 0, "Успешные подключения")
@@ -249,15 +249,15 @@ class MainWindow(QtGui.QWidget):
         right.addWidget(stats_group)
 
         # --- Журнал ---
-        log_group = QtGui.QGroupBox("Журнал событий")
-        log_layout = QtGui.QVBoxLayout(log_group)
-        self.log_view = QtGui.QTextEdit()
+        log_group = QtWidgets.QGroupBox("Журнал событий")
+        log_layout = QtWidgets.QVBoxLayout(log_group)
+        self.log_view = QtWidgets.QTextEdit()
         self.log_view.setReadOnly(True)
         log_layout.addWidget(self.log_view)
 
-        log_buttons = QtGui.QHBoxLayout()
-        self.clear_button = QtGui.QPushButton("Очистить лог")
-        self.save_button = QtGui.QPushButton("Сохранить отчёт")
+        log_buttons = QtWidgets.QHBoxLayout()
+        self.clear_button = QtWidgets.QPushButton("Очистить лог")
+        self.save_button = QtWidgets.QPushButton("Сохранить отчёт")
         self.clear_button.clicked.connect(self.clear_log)
         self.save_button.clicked.connect(self.save_report)
         log_buttons.addStretch(1)
@@ -270,14 +270,14 @@ class MainWindow(QtGui.QWidget):
 
     def _make_stat_widget(self, grid, row, col, title):
         """Создать ячейку статистики (заголовок + значение) и вернуть QLabel значения."""
-        box = QtGui.QVBoxLayout()
-        title_label = QtGui.QLabel(title)
+        box = QtWidgets.QVBoxLayout()
+        title_label = QtWidgets.QLabel(title)
         title_label.setStyleSheet("color: #9aa0aa; font-size: 11px;")
-        value_label = QtGui.QLabel("0")
+        value_label = QtWidgets.QLabel("0")
         value_label.setObjectName("statValue")
         box.addWidget(title_label)
         box.addWidget(value_label)
-        container = QtGui.QWidget()
+        container = QtWidgets.QWidget()
         container.setLayout(box)
         grid.addWidget(container, row, col)
         return value_label
@@ -418,7 +418,7 @@ class MainWindow(QtGui.QWidget):
 
         default_name = "mc_load_report_%s" % time.strftime("%Y%m%d_%H%M%S")
         selected_filter = QtCore.QString() if hasattr(QtCore, "QString") else ""
-        path = QtGui.QFileDialog.getSaveFileName(
+        path = QtWidgets.QFileDialog.getSaveFileName(
             self,
             "Сохранить отчёт",
             default_name,

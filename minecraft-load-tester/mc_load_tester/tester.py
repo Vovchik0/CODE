@@ -29,7 +29,7 @@ import string
 import threading
 import time
 
-from PyQt4 import QtCore
+from .qtcompat import QtCore
 
 from . import logger as log_module
 from .config import TestConfig
