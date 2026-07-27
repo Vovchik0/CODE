@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Minecraft Load Tester</title>
+<style>
+  :root {
+    --bg: #1e1f26; --panel: #262832; --panel2: #2a2c36; --line: #33353f;
+    --text: #e6e6e6; --muted: #9aa0aa; --accent: #8ab4f8; --focus: #4c6ef5;
+    --success: #4caf50; --info: #64b5f6; --warning: #ffb74d; --error: #ef5350;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "Roboto", "DejaVu Sans", Arial, sans-serif;
+    font-size: 15px; -webkit-text-size-adjust: 100%;
+  }
+  header {
+    position: sticky; top: 0; z-index: 5; background: #16171d;
+    border-bottom: 1px solid var(--line); padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  header h1 { font-size: 17px; margin: 0; font-weight: 700; }
+  .badge { font-size: 11px; color: var(--muted); margin-left: auto; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 14px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px; margin-bottom: 14px;
+  }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--accent); margin: 0 0 12px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 4px; }
+  .field { margin-bottom: 12px; }
+  input, select {
+    width: 100%; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px;
+    font-size: 15px; outline: none;
+  }
+  input:focus, select:focus { border-color: var(--focus); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row-check { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .row-check input { width: auto; }
+  .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button {
+    border: none; border-radius: 10px; padding: 14px; font-size: 15px;
+    font-weight: 700; color: #fff; cursor: pointer;
+  }
+  button:disabled { opacity: .5; }
+  .start { background: #2e7d32; } .start:active { background: #388e3c; }
+  .stop  { background: #c62828; } .stop:active  { background: #d32f2f; }
+  .ghost { background: #2f3240; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat { background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px; }
+  .stat .t { font-size: 11px; color: var(--muted); }
+  .stat .v { font-size: 20px; font-weight: 700; color: var(--accent); margin-top: 4px; }
+  #log {
+    background: #16171d; border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px; height: 300px; overflow-y: auto;
+    font-family: "Consolas", "DejaVu Sans Mono", monospace; font-size: 12.5px;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  #log .l { display: block; margin-bottom: 2px; }
+  #log .ts { color: #6b6d75; }
+  .lvl-SUCCESS { color: var(--success); } .lvl-INFO { color: var(--info); }
+  .lvl-WARNING { color: var(--warning); } .lvl-ERROR { color: var(--error); }
+  .log-actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .log-actions a, .log-actions button {
+    flex: 1; text-align: center; text-decoration: none; color: var(--text);
+    background: #2f3240; border-radius: 10px; padding: 12px; font-size: 14px;
+    font-weight: 600;
+  }
+  .notice { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+    background: #555; margin-right: 6px; vertical-align: middle; }
+  .dot.on { background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .err-banner { background: #4a1f1f; border: 1px solid #c62828; color: #ffd9d9;
+    border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 13px; display: none; }
+</style>
+</head>
+<body>
+<header>
+  <span class="dot" id="statusDot"></span>
+  <h1>Minecraft Load Tester</h1>
+  <span class="badge" id="apiBadge"></span>
+</header>
+
+<div class="wrap">
+  <div class="err-banner" id="errBanner"></div>
+
+  <div class="card">
+    <h2>Параметры сервера</h2>
+    <div class="field">
+      <label>IP сервера</label>
+      <input id="host" value="127.0.0.1" placeholder="IP или домен" autocapitalize="off" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Порт</label>
+        <input id="port" type="number" value="25565" min="1" max="65535" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>Версия Minecraft</label>
+        <select id="version"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Параметры нагрузки</h2>
+    <div class="grid2">
+      <div class="field">
+        <label>Количество клиентов</label>
+        <input id="client_count" type="number" value="20" min="1" max="100000" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>Префикс ника</label>
+        <input id="nick_prefix" value="LoadBot" maxlength="16" autocapitalize="off" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label>Задержка между подключениями, c</label>
+        <input id="connect_delay" type="number" value="0.1" min="0" step="0.05" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>Время удержания соединения, c</label>
+        <input id="hold_time" type="number" value="5" min="0" step="0.5" inputmode="decimal">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Постепенное наращивание (Ramp-Up)</h2>
+    <div class="row-check">
+      <input id="ramp_up" type="checkbox">
+      <label for="ramp_up" style="margin:0;">Включить Ramp-Up</label>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Количество волн</label>
+        <input id="ramp_steps" type="number" value="5" min="1" max="100" inputmode="numeric" disabled>
+      </div>
+      <div class="field">
+        <label>Пауза между волнами, c</label>
+        <input id="ramp_interval" type="number" value="1" min="0" step="0.5" inputmode="decimal" disabled>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="btns">
+      <button class="start" id="startBtn">Старт</button>
+      <button class="stop" id="stopBtn" disabled>Стоп</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Статистика</h2>
+    <div class="stats">
+      <div class="stat"><div class="t">Успешные</div><div class="v" id="s_success">0</div></div>
+      <div class="stat"><div class="t">Ошибки</div><div class="v" id="s_errors">0</div></div>
+      <div class="stat"><div class="t">Активные</div><div class="v" id="s_active">0</div></div>
+      <div class="stat"><div class="t">Ср. время</div><div class="v" id="s_avg">0.000 c</div></div>
+      <div class="stat"><div class="t">Общее время</div><div class="v" id="s_elapsed">0.0 c</div></div>
+      <div class="stat"><div class="t">Всего</div><div class="v" id="s_total">0</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Журнал событий</h2>
+    <div id="log"></div>
+    <div class="log-actions">
+      <button class="ghost" id="clearBtn">Очистить</button>
+      <a id="jsonBtn" href="#">Отчёт JSON</a>
+      <a id="csvBtn" href="#">Отчёт CSV</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="notice">⚠️ Используйте только на собственных серверах или с явного
+    разрешения. Тест запускается на машине, где работает этот сервер, а телефон
+    лишь управляет им через браузер.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  // Токен доступа (если сервер запущен с --token) берём из query-параметра.
+  var TOKEN = new URLSearchParams(location.search).get("token") || "";
+  function api(path) {
+    return path + (path.indexOf("?") >= 0 ? "&" : "?") + "token=" + encodeURIComponent(TOKEN);
+  }
+  var $ = function (id) { return document.getElementById(id); };
+  var logShown = 0;      // сколько строк журнала уже отрисовано
+  var poll = null;
+
+  function showError(msg) {
+    var b = $("errBanner");
+    if (!msg) { b.style.display = "none"; return; }
+    b.textContent = msg; b.style.display = "block";
+  }
+
+  // --- Метаданные (версии, значения по умолчанию) ---
+  fetch(api("/api/meta")).then(function (r) { return r.json(); }).then(function (m) {
+    var sel = $("version");
+    m.versions.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v.label; o.textContent = v.label + "  (протокол " + v.protocol + ")";
+      if (v.label === m.default_version) o.selected = true;
+      sel.appendChild(o);
+    });
+    $("apiBadge").textContent = m.qt_available ? "GUI+Web" : "Web";
+  }).catch(function () { showError("Не удалось загрузить список версий."); });
+
+  // --- Ramp-Up переключатель ---
+  $("ramp_up").addEventListener("change", function () {
+    $("ramp_steps").disabled = !this.checked;
+    $("ramp_interval").disabled = !this.checked;
+  });
+
+  // --- Кнопки ---
+  $("startBtn").addEventListener("click", start);
+  $("stopBtn").addEventListener("click", stop);
+  $("clearBtn").addEventListener("click", function () { $("log").innerHTML = ""; });
+  $("jsonBtn").addEventListener("click", function (e) { e.preventDefault(); location.href = api("/api/report?format=json"); });
+  $("csvBtn").addEventListener("click", function (e) { e.preventDefault(); location.href = api("/api/report?format=csv"); });
+
+  function num(id) { return parseFloat($(id).value); }
+  function collectConfig() {
+    return {
+      host: $("host").value.trim(),
+      port: parseInt($("port").value, 10),
+      version: $("version").value,
+      client_count: parseInt($("client_count").value, 10),
+      connect_delay: num("connect_delay"),
+      hold_time: num("hold_time"),
+      nick_prefix: $("nick_prefix").value.trim(),
+      ramp_up: $("ramp_up").checked,
+      ramp_steps: parseInt($("ramp_steps").value, 10),
+      ramp_interval: num("ramp_interval")
+    };
+  }
+
+  function start() {
+    showError("");
+    var cfg = collectConfig();
+    if (!cfg.host) { showError("Укажите адрес сервера."); return; }
+    $("log").innerHTML = ""; logShown = 0;
+    fetch(api("/api/start"), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg)
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { showError(res.j.error || "Не удалось запустить тест."); return; }
+        setRunning(true);
+        startPolling();
+      }).catch(function () { showError("Сеть недоступна."); });
+  }
+
+  function stop() {
+    fetch(api("/api/stop"), { method: "POST" }).catch(function () {});
+  }
+
+  function setRunning(running) {
+    $("startBtn").disabled = running;
+    $("stopBtn").disabled = !running;
+    $("statusDot").classList.toggle("on", running);
+    ["host","port","version","client_count","nick_prefix","connect_delay",
+     "hold_time","ramp_up","ramp_steps","ramp_interval"].forEach(function (id) {
+      var el = $(id);
+      if (id === "ramp_steps" || id === "ramp_interval") {
+        el.disabled = running || !$("ramp_up").checked;
+      } else { el.disabled = running; }
+    });
+  }
+
+  function startPolling() {
+    if (poll) return;
+    poll = setInterval(refresh, 1000);
+    refresh();
+  }
+  function stopPolling() { if (poll) { clearInterval(poll); poll = null; } }
+
+  function refresh() {
+    fetch(api("/api/status?since=" + logShown)).then(function (r) { return r.json(); })
+      .then(function (st) {
+        renderStats(st.stats || {});
+        appendLog(st.log || []);
+        setRunning(st.running);
+        if (!st.running) { stopPolling(); }
+      }).catch(function () {});
+  }
+
+  function renderStats(s) {
+    $("s_success").textContent = s.success || 0;
+    $("s_errors").textContent = s.errors || 0;
+    $("s_active").textContent = s.active || 0;
+    $("s_avg").textContent = (s.avg_connect_time || 0).toFixed(3) + " c";
+    $("s_elapsed").textContent = (s.elapsed || 0).toFixed(1) + " c";
+    $("s_total").textContent = s.total || 0;
+  }
+
+  function appendLog(lines) {
+    if (!lines.length) return;
+    var box = $("log");
+    var nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+    var frag = document.createDocumentFragment();
+    lines.forEach(function (ln) {
+      var el = document.createElement("span");
+      el.className = "l";
+      el.innerHTML = '<span class="ts">[' + ln.time + ']</span> ' +
+        '<span class="lvl-' + esc(ln.level) + '">[' + esc(ln.level) + ']</span> ' +
+        esc(ln.message);
+      frag.appendChild(el);
+    });
+    box.appendChild(frag);
+    logShown += lines.length;
+    if (nearBottom) box.scrollTop = box.scrollHeight;
+  }
+
+  function esc(t) {
+    return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // При загрузке страницы подхватываем уже идущий тест (если сервер перезапущен
+  // не был, а страница переоткрыта).
+  refresh();
+  startPollingIfRunning();
+  function startPollingIfRunning() {
+    fetch(api("/api/status?since=0")).then(function (r) { return r.json(); })
+      .then(function (st) { if (st.running) { logShown = 0; startPolling(); } })
+      .catch(function () {});
+  }
+})();
+</script>
+</body>
+</html>
