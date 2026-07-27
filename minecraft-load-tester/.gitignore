@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+# Файлы журнала и отчёты, создаваемые во время работы
+minecraft_load_tester.log*
+mc_load_report_*.json
+mc_load_report_*.csv
