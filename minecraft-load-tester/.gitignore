@@ -5,3 +5,5 @@ __pycache__/
 minecraft_load_tester.log*
 mc_load_report_*.json
 mc_load_report_*.csv
+# Автоматически загружаемый бинарник туннеля (share.sh)
+.cloudflared/
