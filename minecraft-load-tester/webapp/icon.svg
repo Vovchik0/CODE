@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#16171d"/>
+  <rect x="40" y="40" width="432" height="432" rx="72" fill="#1e1f26" stroke="#33353f" stroke-width="8"/>
+  <!-- стилизованная «нагрузка»: столбики + молния -->
+  <g fill="#4c6ef5">
+    <rect x="104" y="300" width="52" height="108" rx="10"/>
+    <rect x="180" y="250" width="52" height="158" rx="10"/>
+    <rect x="256" y="196" width="52" height="212" rx="10"/>
+  </g>
+  <path d="M330 104 L250 264 L316 264 L286 408 L406 232 L336 232 Z"
+        fill="#8ab4f8" stroke="#4c6ef5" stroke-width="6" stroke-linejoin="round"/>
+</svg>

@@ -51,6 +51,9 @@ class TestConfig(object):
     ввода GUI и передаются в :class:`~mc_load_tester.tester.LoadTester`.
     """
 
+    #: имя начинается с «Test», поэтому явно помечаем класс как не-тест для pytest.
+    __test__ = False
+
     def __init__(
         self,
         host: str = "127.0.0.1",
@@ -64,6 +67,7 @@ class TestConfig(object):
         ramp_steps: int = 5,
         ramp_interval: float = 1.0,
         socket_timeout: float = 5.0,
+        max_concurrency: int = 0,
     ):
         self.host = host
         self.port = int(port)
@@ -82,6 +86,9 @@ class TestConfig(object):
         self.ramp_interval = float(ramp_interval)
         #: таймаут сокета на установку соединения / чтение
         self.socket_timeout = float(socket_timeout)
+        #: макс. число одновременных соединений (0 -- без ограничения).
+        #: Защищает саму тест-машину от исчерпания ресурсов при больших N.
+        self.max_concurrency = max(0, int(max_concurrency))
 
     @property
     def protocol(self) -> int:

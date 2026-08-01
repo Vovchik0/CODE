@@ -1,0 +1,19 @@
+{
+  "name": "Minecraft Load Tester",
+  "short_name": "MC Load Test",
+  "description": "Нагрузочное тестирование собственного Minecraft-сервера с телефона.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16171d",
+  "theme_color": "#16171d",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

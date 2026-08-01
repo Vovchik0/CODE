@@ -154,8 +154,13 @@ class MainWindow(QtWidgets.QWidget):
         load_form.setSpacing(8)
 
         self.clients_spin = QtWidgets.QSpinBox()
-        self.clients_spin.setRange(1, 100000)
+        self.clients_spin.setRange(1, 1000000)
         self.clients_spin.setValue(20)
+
+        self.concurrency_spin = QtWidgets.QSpinBox()
+        self.concurrency_spin.setRange(0, 1000000)
+        self.concurrency_spin.setValue(0)
+        self.concurrency_spin.setToolTip("Максимум одновременных соединений (0 — без ограничения)")
 
         self.delay_spin = QtWidgets.QDoubleSpinBox()
         self.delay_spin.setRange(0.0, 60.0)
@@ -175,6 +180,7 @@ class MainWindow(QtWidgets.QWidget):
         self.prefix_edit.setPlaceholderText("Префикс ника")
 
         load_form.addRow("Количество клиентов:", self.clients_spin)
+        load_form.addRow("Макс. одновременно (0=без лимита):", self.concurrency_spin)
         load_form.addRow("Задержка между подключениями:", self.delay_spin)
         load_form.addRow("Время удержания соединения:", self.hold_spin)
         load_form.addRow("Префикс ника:", self.prefix_edit)
@@ -307,6 +313,7 @@ class MainWindow(QtWidgets.QWidget):
             ramp_up=self.ramp_check.isChecked(),
             ramp_steps=self.ramp_steps_spin.value(),
             ramp_interval=self.ramp_interval_spin.value(),
+            max_concurrency=self.concurrency_spin.value(),
         )
 
     @staticmethod
@@ -359,9 +366,9 @@ class MainWindow(QtWidgets.QWidget):
         # Блокируем изменение параметров во время теста.
         for widget in (
             self.host_edit, self.port_spin, self.version_combo,
-            self.clients_spin, self.delay_spin, self.hold_spin,
-            self.prefix_edit, self.ramp_check, self.ramp_steps_spin,
-            self.ramp_interval_spin,
+            self.clients_spin, self.concurrency_spin, self.delay_spin,
+            self.hold_spin, self.prefix_edit, self.ramp_check,
+            self.ramp_steps_spin, self.ramp_interval_spin,
         ):
             widget.setEnabled(not running)
         if not running:

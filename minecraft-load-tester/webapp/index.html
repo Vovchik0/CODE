@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#16171d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
 <title>Minecraft Load Tester</title>
 <style>
   :root {
@@ -24,7 +28,7 @@
   }
   header h1 { font-size: 17px; margin: 0; font-weight: 700; }
   .badge { font-size: 11px; color: var(--muted); margin-left: auto; }
-  .wrap { max-width: 720px; margin: 0 auto; padding: 14px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 14px; }
   .card {
     background: var(--panel); border: 1px solid var(--line);
     border-radius: 12px; padding: 14px; margin-bottom: 14px;
@@ -51,14 +55,27 @@
   .start { background: #2e7d32; } .start:active { background: #388e3c; }
   .stop  { background: #c62828; } .stop:active  { background: #d32f2f; }
   .ghost { background: #2f3240; }
+  .ping  { background: #37474f; width: 100%; margin-top: 4px; }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .stat { background: var(--panel2); border: 1px solid var(--line);
     border-radius: 10px; padding: 10px; }
   .stat .t { font-size: 11px; color: var(--muted); }
-  .stat .v { font-size: 20px; font-weight: 700; color: var(--accent); margin-top: 4px; }
+  .stat .v { font-size: 19px; font-weight: 700; color: var(--accent); margin-top: 4px; }
+  .errbreak { margin-top: 10px; font-size: 12.5px; color: var(--muted);
+    display: flex; flex-wrap: wrap; gap: 8px; }
+  .errbreak span { background: #3a2224; color: #ffb4b4; border-radius: 6px;
+    padding: 3px 8px; }
+  canvas { width: 100%; height: 130px; display: block; background: #16171d;
+    border: 1px solid var(--line); border-radius: 10px; }
+  .chart-title { font-size: 12px; color: var(--muted); margin: 4px 2px 6px; }
+  .legend { font-size: 11px; color: var(--muted); display: flex; gap: 14px; margin: 6px 2px 0; }
+  .legend i { display: inline-block; width: 10px; height: 3px; border-radius: 2px;
+    margin-right: 5px; vertical-align: middle; }
+  #pingBox { font-size: 13px; margin-top: 10px; line-height: 1.55; display: none; }
+  #pingBox .k { color: var(--muted); }
   #log {
     background: #16171d; border: 1px solid var(--line); border-radius: 10px;
-    padding: 10px; height: 300px; overflow-y: auto;
+    padding: 10px; height: 280px; overflow-y: auto;
     font-family: "Consolas", "DejaVu Sans Mono", monospace; font-size: 12.5px;
     white-space: pre-wrap; word-break: break-word;
   }
@@ -106,6 +123,8 @@
         <select id="version"></select>
       </div>
     </div>
+    <button class="ping" id="pingBtn">Пинг сервера (проверить доступность)</button>
+    <div id="pingBox"></div>
   </div>
 
   <div class="card">
@@ -113,7 +132,11 @@
     <div class="grid2">
       <div class="field">
         <label>Количество клиентов</label>
-        <input id="client_count" type="number" value="20" min="1" max="100000" inputmode="numeric">
+        <input id="client_count" type="number" value="20" min="1" max="1000000" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>Макс. одновременно (0 = без лимита)</label>
+        <input id="max_concurrency" type="number" value="0" min="0" max="1000000" inputmode="numeric">
       </div>
       <div class="field">
         <label>Префикс ника</label>
@@ -161,10 +184,24 @@
       <div class="stat"><div class="t">Успешные</div><div class="v" id="s_success">0</div></div>
       <div class="stat"><div class="t">Ошибки</div><div class="v" id="s_errors">0</div></div>
       <div class="stat"><div class="t">Активные</div><div class="v" id="s_active">0</div></div>
-      <div class="stat"><div class="t">Ср. время</div><div class="v" id="s_avg">0.000 c</div></div>
+      <div class="stat"><div class="t">Пик активных</div><div class="v" id="s_peak">0</div></div>
+      <div class="stat"><div class="t">Подкл/с</div><div class="v" id="s_rps">0.0</div></div>
       <div class="stat"><div class="t">Общее время</div><div class="v" id="s_elapsed">0.0 c</div></div>
-      <div class="stat"><div class="t">Всего</div><div class="v" id="s_total">0</div></div>
+      <div class="stat"><div class="t">Ср. время</div><div class="v" id="s_avg">0 мс</div></div>
+      <div class="stat"><div class="t">p95</div><div class="v" id="s_p95">0 мс</div></div>
+      <div class="stat"><div class="t">p99</div><div class="v" id="s_p99">0 мс</div></div>
     </div>
+    <div class="errbreak" id="errbreak"></div>
+  </div>
+
+  <div class="card">
+    <h2>Графики</h2>
+    <div class="chart-title">Латентность подключения, мс</div>
+    <canvas id="chartLatency"></canvas>
+    <div class="legend"><span><i style="background:#8ab4f8"></i>среднее</span><span><i style="background:#ffb74d"></i>p95</span></div>
+    <div class="chart-title" style="margin-top:14px;">Соединения</div>
+    <canvas id="chartConn"></canvas>
+    <div class="legend"><span><i style="background:#4caf50"></i>активные</span><span><i style="background:#ef5350"></i>ошибки (всего)</span></div>
   </div>
 
   <div class="card">
@@ -187,22 +224,28 @@
 <script>
 (function () {
   "use strict";
-  // Токен доступа (если сервер запущен с --token) берём из query-параметра.
   var TOKEN = new URLSearchParams(location.search).get("token") || "";
   function api(path) {
     return path + (path.indexOf("?") >= 0 ? "&" : "?") + "token=" + encodeURIComponent(TOKEN);
   }
   var $ = function (id) { return document.getElementById(id); };
-  var logShown = 0;      // сколько строк журнала уже отрисовано
-  var poll = null;
+  var logShown = 0, poll = null;
+
+  // История для графиков.
+  var MAXPTS = 120;
+  var hAvg = [], hP95 = [], hActive = [], hErrors = [];
 
   function showError(msg) {
     var b = $("errBanner");
     if (!msg) { b.style.display = "none"; return; }
     b.textContent = msg; b.style.display = "block";
   }
+  function esc(t) {
+    return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function ms(sec) { return Math.round((sec || 0) * 1000); }
 
-  // --- Метаданные (версии, значения по умолчанию) ---
+  // --- Метаданные ---
   fetch(api("/api/meta")).then(function (r) { return r.json(); }).then(function (m) {
     var sel = $("version");
     m.versions.forEach(function (v) {
@@ -214,15 +257,14 @@
     $("apiBadge").textContent = m.qt_available ? "GUI+Web" : "Web";
   }).catch(function () { showError("Не удалось загрузить список версий."); });
 
-  // --- Ramp-Up переключатель ---
   $("ramp_up").addEventListener("change", function () {
     $("ramp_steps").disabled = !this.checked;
     $("ramp_interval").disabled = !this.checked;
   });
 
-  // --- Кнопки ---
   $("startBtn").addEventListener("click", start);
   $("stopBtn").addEventListener("click", stop);
+  $("pingBtn").addEventListener("click", ping);
   $("clearBtn").addEventListener("click", function () { $("log").innerHTML = ""; });
   $("jsonBtn").addEventListener("click", function (e) { e.preventDefault(); location.href = api("/api/report?format=json"); });
   $("csvBtn").addEventListener("click", function (e) { e.preventDefault(); location.href = api("/api/report?format=csv"); });
@@ -234,6 +276,7 @@
       port: parseInt($("port").value, 10),
       version: $("version").value,
       client_count: parseInt($("client_count").value, 10),
+      max_concurrency: parseInt($("max_concurrency").value, 10) || 0,
       connect_delay: num("connect_delay"),
       hold_time: num("hold_time"),
       nick_prefix: $("nick_prefix").value.trim(),
@@ -243,32 +286,52 @@
     };
   }
 
+  function ping() {
+    var host = $("host").value.trim();
+    if (!host) { showError("Укажите адрес сервера."); return; }
+    var box = $("pingBox");
+    box.style.display = "block";
+    box.innerHTML = '<span class="k">Пингую…</span>';
+    var q = "/api/ping?host=" + encodeURIComponent(host) +
+            "&port=" + encodeURIComponent($("port").value) +
+            "&version=" + encodeURIComponent($("version").value);
+    fetch(api(q)).then(function (r) { return r.json(); }).then(function (p) {
+      if (!p.online) {
+        box.innerHTML = '<span style="color:var(--error)">Сервер недоступен:</span> ' + esc(p.error || "нет ответа");
+        return;
+      }
+      box.innerHTML =
+        '<div><span class="k">Онлайн:</span> ' + esc(p.players_online) + " / " + esc(p.players_max) + "</div>" +
+        '<div><span class="k">Версия:</span> ' + esc(p.version || "?") + "</div>" +
+        '<div><span class="k">Задержка:</span> ' + esc(p.latency_ms) + " мс</div>" +
+        '<div><span class="k">MOTD:</span> ' + esc((p.motd || "").replace(/\n/g, " ")) + "</div>";
+    }).catch(function () { box.innerHTML = '<span style="color:var(--error)">Ошибка запроса.</span>'; });
+  }
+
   function start() {
     showError("");
     var cfg = collectConfig();
     if (!cfg.host) { showError("Укажите адрес сервера."); return; }
     $("log").innerHTML = ""; logShown = 0;
+    hAvg = []; hP95 = []; hActive = []; hErrors = [];
     fetch(api("/api/start"), {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg)
     }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         if (!res.ok) { showError(res.j.error || "Не удалось запустить тест."); return; }
-        setRunning(true);
-        startPolling();
+        setRunning(true); startPolling();
       }).catch(function () { showError("Сеть недоступна."); });
   }
 
-  function stop() {
-    fetch(api("/api/stop"), { method: "POST" }).catch(function () {});
-  }
+  function stop() { fetch(api("/api/stop"), { method: "POST" }).catch(function () {}); }
 
   function setRunning(running) {
     $("startBtn").disabled = running;
     $("stopBtn").disabled = !running;
     $("statusDot").classList.toggle("on", running);
-    ["host","port","version","client_count","nick_prefix","connect_delay",
-     "hold_time","ramp_up","ramp_steps","ramp_interval"].forEach(function (id) {
+    ["host","port","version","client_count","max_concurrency","nick_prefix",
+     "connect_delay","hold_time","ramp_up","ramp_steps","ramp_interval"].forEach(function (id) {
       var el = $(id);
       if (id === "ramp_steps" || id === "ramp_interval") {
         el.disabled = running || !$("ramp_up").checked;
@@ -276,11 +339,7 @@
     });
   }
 
-  function startPolling() {
-    if (poll) return;
-    poll = setInterval(refresh, 1000);
-    refresh();
-  }
+  function startPolling() { if (!poll) { poll = setInterval(refresh, 1000); refresh(); } }
   function stopPolling() { if (poll) { clearInterval(poll); poll = null; } }
 
   function refresh() {
@@ -289,7 +348,7 @@
         renderStats(st.stats || {});
         appendLog(st.log || []);
         setRunning(st.running);
-        if (!st.running) { stopPolling(); }
+        if (!st.running) stopPolling();
       }).catch(function () {});
   }
 
@@ -297,9 +356,64 @@
     $("s_success").textContent = s.success || 0;
     $("s_errors").textContent = s.errors || 0;
     $("s_active").textContent = s.active || 0;
-    $("s_avg").textContent = (s.avg_connect_time || 0).toFixed(3) + " c";
+    $("s_peak").textContent = s.peak_active || 0;
+    $("s_rps").textContent = (s.rps || 0).toFixed(1);
     $("s_elapsed").textContent = (s.elapsed || 0).toFixed(1) + " c";
-    $("s_total").textContent = s.total || 0;
+    $("s_avg").textContent = ms(s.avg_connect_time) + " мс";
+    $("s_p95").textContent = ms(s.p95_connect_time) + " мс";
+    $("s_p99").textContent = ms(s.p99_connect_time) + " мс";
+
+    // Разбивка ошибок по категориям.
+    var eb = $("errbreak"); eb.innerHTML = "";
+    var by = s.errors_by_type || {};
+    Object.keys(by).forEach(function (k) {
+      var sp = document.createElement("span");
+      sp.textContent = k + ": " + by[k];
+      eb.appendChild(sp);
+    });
+
+    // История для графиков.
+    push(hAvg, ms(s.avg_connect_time)); push(hP95, ms(s.p95_connect_time));
+    push(hActive, s.active || 0); push(hErrors, s.errors || 0);
+    drawChart($("chartLatency"), [hAvg, hP95], ["#8ab4f8", "#ffb74d"]);
+    drawChart($("chartConn"), [hActive, hErrors], ["#4caf50", "#ef5350"]);
+  }
+
+  function push(arr, v) { arr.push(v); if (arr.length > MAXPTS) arr.shift(); }
+
+  function drawChart(canvas, series, colors) {
+    var ratio = window.devicePixelRatio || 1;
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== w * ratio || canvas.height !== h * ratio) {
+      canvas.width = w * ratio; canvas.height = h * ratio;
+    }
+    var ctx = canvas.getContext("2d");
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    var pad = 6, max = 1;
+    series.forEach(function (s) { s.forEach(function (v) { if (v > max) max = v; }); });
+
+    // сетка
+    ctx.strokeStyle = "#23242c"; ctx.lineWidth = 1;
+    for (var g = 1; g <= 3; g++) {
+      var y = pad + (h - 2 * pad) * g / 4;
+      ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(w - pad, y); ctx.stroke();
+    }
+    // линии
+    series.forEach(function (s, si) {
+      if (s.length < 2) return;
+      ctx.strokeStyle = colors[si]; ctx.lineWidth = 2; ctx.beginPath();
+      for (var i = 0; i < s.length; i++) {
+        var x = pad + (w - 2 * pad) * (i / (MAXPTS - 1));
+        var yy = h - pad - (h - 2 * pad) * (s[i] / max);
+        if (i === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    });
+    // подпись максимума
+    ctx.fillStyle = "#6b6d75"; ctx.font = "10px sans-serif";
+    ctx.fillText(String(Math.round(max)), pad + 2, pad + 10);
   }
 
   function appendLog(lines) {
@@ -308,11 +422,9 @@
     var nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
     var frag = document.createDocumentFragment();
     lines.forEach(function (ln) {
-      var el = document.createElement("span");
-      el.className = "l";
+      var el = document.createElement("span"); el.className = "l";
       el.innerHTML = '<span class="ts">[' + ln.time + ']</span> ' +
-        '<span class="lvl-' + esc(ln.level) + '">[' + esc(ln.level) + ']</span> ' +
-        esc(ln.message);
+        '<span class="lvl-' + esc(ln.level) + '">[' + esc(ln.level) + ']</span> ' + esc(ln.message);
       frag.appendChild(el);
     });
     box.appendChild(frag);
@@ -320,18 +432,16 @@
     if (nearBottom) box.scrollTop = box.scrollHeight;
   }
 
-  function esc(t) {
-    return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
+  // Подхватываем уже идущий тест при открытии страницы.
+  fetch(api("/api/status?since=0")).then(function (r) { return r.json(); })
+    .then(function (st) { renderStats(st.stats || {}); if (st.running) { logShown = 0; startPolling(); } })
+    .catch(function () {});
 
-  // При загрузке страницы подхватываем уже идущий тест (если сервер перезапущен
-  // не был, а страница переоткрыта).
-  refresh();
-  startPollingIfRunning();
-  function startPollingIfRunning() {
-    fetch(api("/api/status?since=0")).then(function (r) { return r.json(); })
-      .then(function (st) { if (st.running) { logShown = 0; startPolling(); } })
-      .catch(function () {});
+  // Регистрация сервис-воркера (PWA) -- только при HTTPS/localhost.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () {});
+    });
   }
 })();
 </script>

@@ -47,7 +47,13 @@ from urllib.parse import urlparse, parse_qs
 
 from mc_load_tester import logger as log_module
 from mc_load_tester import reports
-from mc_load_tester.config import MINECRAFT_VERSIONS, DEFAULT_VERSION, TestConfig
+from mc_load_tester import status as status_module
+from mc_load_tester.config import (
+    MINECRAFT_VERSIONS,
+    DEFAULT_VERSION,
+    TestConfig,
+    protocol_for,
+)
 from mc_load_tester.engine import LoadTestEngine
 
 _WEBAPP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webapp")
@@ -164,6 +170,7 @@ def _config_from_dict(data: dict) -> TestConfig:
         ramp_up=bool(data.get("ramp_up", False)),
         ramp_steps=max(1, int(data.get("ramp_steps", 5))),
         ramp_interval=max(0.0, float(data.get("ramp_interval", 1.0))),
+        max_concurrency=max(0, int(data.get("max_concurrency", 0))),
     )
 
 
@@ -245,6 +252,15 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/" or path == "/index.html":
             return self._serve_page()
 
+        # Статические ресурсы PWA (иконка, манифест, service worker).
+        static_types = {
+            "/manifest.webmanifest": "application/manifest+json; charset=utf-8",
+            "/sw.js": "application/javascript; charset=utf-8",
+            "/icon.svg": "image/svg+xml; charset=utf-8",
+        }
+        if path in static_types:
+            return self._serve_static(os.path.basename(path), static_types[path])
+
         if path.startswith("/api/") and not self._authorized(query):
             return self._send_json({"error": "Требуется корректный токен доступа."}, 403)
 
@@ -268,6 +284,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/report":
             return self._serve_report(query)
+
+        if path == "/api/ping":
+            return self._serve_ping(query)
 
         return self._send_json({"error": "Не найдено"}, 404)
 
@@ -306,6 +325,33 @@ class Handler(BaseHTTPRequestHandler):
         except (OSError, IOError):
             return self._send_bytes(b"index.html not found", "text/plain; charset=utf-8", 500)
         return self._send_bytes(body, "text/html; charset=utf-8")
+
+    def _serve_static(self, filename, content_type):
+        file_path = os.path.join(_WEBAPP_DIR, filename)
+        try:
+            with open(file_path, "rb") as fh:
+                body = fh.read()
+        except (OSError, IOError):
+            return self._send_bytes(b"not found", "text/plain; charset=utf-8", 404)
+        return self._send_bytes(body, content_type)
+
+    def _serve_ping(self, query):
+        host = (query.get("host", [""])[0] or "").strip()
+        if not host:
+            return self._send_json({"error": "Не указан адрес сервера."}, 400)
+        try:
+            port = int(query.get("port", ["25565"])[0])
+        except ValueError:
+            port = 25565
+        version = query.get("version", [DEFAULT_VERSION])[0]
+        protocol = protocol_for(version)
+        try:
+            result = status_module.ping(host, port, protocol, timeout=5.0)
+            return self._send_json(result)
+        except Exception as exc:  # недоступность/таймаут/ошибка протокола
+            return self._send_json(
+                {"online": False, "error": "%s: %s" % (type(exc).__name__, exc)}
+            )
 
     def _serve_report(self, query):
         fmt = (query.get("format", ["json"])[0] or "json").lower()

@@ -55,7 +55,12 @@ def save_csv(path: str, config: TestConfig, stats: dict, log_lines: list) -> Non
 
         writer.writerow(["== Статистика =="])
         for key, value in stats.items():
-            writer.writerow([key, value])
+            if isinstance(value, dict):
+                # Разворачиваем вложенные словари (например, errors_by_type).
+                for sub_key, sub_value in value.items():
+                    writer.writerow(["%s.%s" % (key, sub_key), sub_value])
+            else:
+                writer.writerow([key, value])
         writer.writerow([])
 
         writer.writerow(["== Журнал =="])
