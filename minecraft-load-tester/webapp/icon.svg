@@ -1,12 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="96" fill="#16171d"/>
-  <rect x="40" y="40" width="432" height="432" rx="72" fill="#1e1f26" stroke="#33353f" stroke-width="8"/>
-  <!-- стилизованная «нагрузка»: столбики + молния -->
-  <g fill="#4c6ef5">
-    <rect x="104" y="300" width="52" height="108" rx="10"/>
-    <rect x="180" y="250" width="52" height="158" rx="10"/>
-    <rect x="256" y="196" width="52" height="212" rx="10"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Minecraft Load Tester">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6d5efc"/>
+      <stop offset="0.55" stop-color="#4c6ef5"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#1b2540"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d6f5ff"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="sheen" cx="0.28" cy="0.22" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- фон -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"/>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#sheen)"/>
+  <rect x="16.5" y="16.5" width="479" height="479" rx="111.5" fill="none"
+        stroke="#ffffff" stroke-opacity="0.18" stroke-width="3"/>
+
+  <!-- столбики нагрузки -->
+  <g>
+    <rect x="112" y="292" width="66" height="120" rx="18" fill="url(#bar)" opacity="0.92"/>
+    <rect x="196" y="236" width="66" height="176" rx="18" fill="url(#bar)" opacity="0.92"/>
+    <rect x="280" y="180" width="66" height="232" rx="18" fill="url(#bar)" opacity="0.92"/>
   </g>
-  <path d="M330 104 L250 264 L316 264 L286 408 L406 232 L336 232 Z"
-        fill="#8ab4f8" stroke="#4c6ef5" stroke-width="6" stroke-linejoin="round"/>
+
+  <!-- молния (энергия/нагрузка) -->
+  <path d="M330 96 L236 268 L300 268 L268 416 L410 226 L336 226 Z"
+        fill="url(#bolt)" filter="url(#glow)"
+        stroke="#4c6ef5" stroke-width="4" stroke-linejoin="round"/>
 </svg>

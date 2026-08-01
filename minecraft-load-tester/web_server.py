@@ -39,6 +39,7 @@ import argparse
 import json
 import os
 import socket
+import sys
 import tempfile
 import threading
 import time
@@ -48,6 +49,7 @@ from urllib.parse import urlparse, parse_qs
 from mc_load_tester import logger as log_module
 from mc_load_tester import reports
 from mc_load_tester import status as status_module
+from mc_load_tester import updater
 from mc_load_tester.config import (
     MINECRAFT_VERSIONS,
     DEFAULT_VERSION,
@@ -56,7 +58,8 @@ from mc_load_tester.config import (
 )
 from mc_load_tester.engine import LoadTestEngine
 
-_WEBAPP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webapp")
+_PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+_WEBAPP_DIR = os.path.join(_PROJECT_DIR, "webapp")
 _MAX_LOG_LINES = 5000
 
 
@@ -195,9 +198,22 @@ def _local_ips() -> list:
 # ---------------------------------------------------------------------------
 # HTTP-обработчик
 # ---------------------------------------------------------------------------
+def _restart_process():
+    """Перезапустить процесс сервера с теми же аргументами (после обновления)."""
+    def _do():
+        time.sleep(0.6)  # дать HTTP-ответу уйти
+        try:
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        except OSError:
+            pass
+    threading.Thread(target=_do, daemon=True).start()
+
+
 class Handler(BaseHTTPRequestHandler):
     #: токен доступа задаётся при запуске сервера (класс-атрибут)
     access_token = ""
+    #: разрешено ли применять обновления через API (флаг --allow-update / --auto-update)
+    allow_update = False
 
     server_version = "MinecraftLoadTester/1.0"
 
@@ -288,6 +304,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/ping":
             return self._serve_ping(query)
 
+        if path == "/api/version":
+            fetch = query.get("check", ["0"])[0] in ("1", "true", "yes")
+            info = updater.status(_PROJECT_DIR, fetch=fetch)
+            info["allow_update"] = self.allow_update
+            return self._send_json(info)
+
         return self._send_json({"error": "Не найдено"}, 404)
 
     def do_POST(self):
@@ -314,7 +336,27 @@ class Handler(BaseHTTPRequestHandler):
             MANAGER.stop()
             return self._send_json({"ok": True})
 
+        if path == "/api/update":
+            return self._serve_update()
+
         return self._send_json({"error": "Не найдено"}, 404)
+
+    def _serve_update(self):
+        if not self.allow_update:
+            return self._send_json(
+                {"ok": False, "error": "Обновление через API отключено. "
+                 "Запустите сервер с --allow-update или --auto-update."}, 403)
+        if MANAGER.running:
+            return self._send_json(
+                {"ok": False, "error": "Идёт тест -- остановите его перед обновлением."}, 409)
+        result = updater.pull(_PROJECT_DIR)
+        if result.get("updated"):
+            # Изменения применены -> перезапускаем сервер, чтобы подхватить их.
+            result["restarting"] = True
+            self._send_json(result)
+            _restart_process()
+            return
+        return self._send_json(result)
 
     # -- конкретные ресурсы ----------------------------------------------
     def _serve_page(self):
@@ -378,6 +420,31 @@ class Handler(BaseHTTPRequestHandler):
 
 
 # ---------------------------------------------------------------------------
+# Фоновое авто-обновление
+# ---------------------------------------------------------------------------
+def _start_auto_update(interval_min: float, logger) -> None:
+    """Периодически проверять обновления и применять их, когда тест не идёт."""
+    interval = max(1.0, interval_min) * 60.0
+
+    def loop():
+        while True:
+            time.sleep(interval)
+            try:
+                info = updater.status(_PROJECT_DIR, fetch=True)
+                if info.get("update_available") and not MANAGER.running:
+                    result = updater.pull(_PROJECT_DIR)
+                    if result.get("updated"):
+                        logger.info("Авто-обновление применено (%s) -- перезапуск сервера",
+                                    result.get("commit"))
+                        os.execv(sys.executable, [sys.executable] + sys.argv)
+            except Exception:
+                pass  # обновление не должно ронять сервер
+
+    thread = threading.Thread(target=loop, name="auto-update", daemon=True)
+    thread.start()
+
+
+# ---------------------------------------------------------------------------
 # Точка входа
 # ---------------------------------------------------------------------------
 def main() -> int:
@@ -390,10 +457,16 @@ def main() -> int:
                         help="Порт (по умолчанию 8000).")
     parser.add_argument("--token", default=os.environ.get("MC_LT_TOKEN", ""),
                         help="Необязательный токен доступа (или переменная MC_LT_TOKEN).")
+    parser.add_argument("--allow-update", action="store_true",
+                        help="Разрешить применять обновления через API/кнопку в интерфейсе.")
+    parser.add_argument("--auto-update", type=float, default=0.0, metavar="МИН",
+                        help="Автоматически проверять и применять обновления каждые N минут "
+                             "(0 -- выключено; включает --allow-update).")
     args = parser.parse_args()
 
     logger = log_module.setup_logger()
     Handler.access_token = args.token
+    Handler.allow_update = bool(args.allow_update or args.auto_update > 0)
 
     httpd = ThreadingHTTPServer((args.host, args.port), Handler)
     httpd.daemon_threads = True
@@ -406,9 +479,15 @@ def main() -> int:
         print(" В сети:     http://%s:%d%s   <- откройте на телефоне" % (ip, args.port, token_suffix))
     if not args.token:
         print(" ВНИМАНИЕ: доступ без токена. Для защиты используйте --token СЕКРЕТ")
+    if args.auto_update > 0:
+        print(" Авто-обновление: каждые %g мин (git pull + перезапуск, когда тест не идёт)"
+              % args.auto_update)
     print(" Остановка: Ctrl+C")
     print("=" * 60)
     logger.info("Веб-сервер запущен на %s:%d", args.host, args.port)
+
+    if args.auto_update > 0:
+        _start_auto_update(args.auto_update, logger)
 
     try:
         httpd.serve_forever()

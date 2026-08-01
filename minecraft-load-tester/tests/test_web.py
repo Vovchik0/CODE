@@ -97,6 +97,19 @@ def test_ping_endpoint(web, mock_server):
     assert p["players_max"] == 100
 
 
+def test_version_endpoint(web):
+    v = _get(web, "/api/version")  # без ?check -- без обращения к сети
+    assert "is_git" in v
+    assert v["allow_update"] is False
+
+
+def test_update_forbidden_when_disabled(web):
+    import urllib.error
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        _post(web, "/api/update", {})
+    assert exc.value.code == 403
+
+
 def test_token_required():
     Handler.access_token = "sec"
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)

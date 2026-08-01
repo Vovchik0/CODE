@@ -8,3 +8,12 @@ mc_load_report_*.json
 mc_load_report_*.csv
 # Автоматически загружаемый бинарник туннеля (share.sh)
 .cloudflared/
+# Виртуальное окружение и артефакты установки (install.sh/install.bat)
+.venv/
+*.egg-info/
+build/
+dist/
+run-web.sh
+run-gui.sh
+run-web.bat
+run-gui.bat

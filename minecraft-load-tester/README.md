@@ -54,6 +54,9 @@ minecraft-load-tester/
     ├── __init__.py
 ├── web_server.py              # Веб-сервер для управления с телефона (stdlib)
 ├── share.sh                   # Публичный HTTPS-доступ через туннель (Cloudflare)
+├── install.sh / install.bat   # Установщик (venv + зависимости + лаунчеры)
+├── update.sh / update.bat     # Обновление из git
+├── pyproject.toml             # Пакет и точки входа (pip install -e .)
 ├── pytest.ini                 # Конфигурация тестов
 ├── conftest.py                # Корневой conftest (sys.path)
 ├── LICENSE                    # Лицензия MIT
@@ -75,6 +78,7 @@ minecraft-load-tester/
     ├── logger.py              # Настройка журналирования и цвета уровней
     ├── protocol.py            # Клиентская часть протокола Minecraft
     ├── status.py              # Server List Ping (MOTD, онлайн, версия, задержка)
+    ├── updater.py             # Самообновление через git
     ├── engine.py              # Qt-независимое ядро (потоки, статистика, ramp-up, лимит)
     ├── qtcompat.py            # Слой совместимости Qt-биндингов (PyQt5 -> PyQt4)
     ├── tester.py              # Qt-обёртка (QThread) над движком для GUI
@@ -100,7 +104,51 @@ minecraft-load-tester/
 
 ## Установка
 
-### 1. Python
+### Быстрый установщик (рекомендуется)
+
+Один скрипт создаёт изолированное окружение (`.venv`), ставит приложение и
+делает удобные лаунчеры. Веб-версия работает всегда; десктопный GUI ставится,
+если на платформе доступен PyQt5.
+
+```bash
+# Linux / macOS / Termux
+git clone https://github.com/Vovchik0/Minecraft-tester.git
+cd Minecraft-tester
+./install.sh
+./run-web.sh          # веб (открыть с телефона)
+./run-gui.sh          # десктопный GUI
+```
+
+```bat
+REM Windows
+git clone https://github.com/Vovchik0/Minecraft-tester.git
+cd Minecraft-tester
+install.bat
+run-web.bat
+run-gui.bat
+```
+
+Через pip (в своё окружение):
+
+```bash
+pip install -e ".[gui]"     # с GUI
+pip install -e .            # только веб/CLI
+mc-load-tester              # запустить GUI
+mc-load-tester-web          # запустить веб-сервер
+```
+
+### Обновления
+
+- **Вручную:** `./update.sh` (Linux/macOS/Termux) или `update.bat` (Windows) —
+  делает `git pull` и переустанавливает зависимости.
+- **Из веб-интерфейса:** карточка «Версия и обновления» показывает текущую
+  версию и кнопку обновления. Требуется запуск сервера с `--allow-update`.
+- **Автоматически:** `python web_server.py --auto-update 60` — сервер каждые
+  60 минут проверяет GitHub и, если появились изменения (и тест не идёт),
+  применяет их (`git pull`) и перезапускается. Так копия сама подтягивает
+  правки автора. Работает, если приложение установлено через `git clone`.
+
+### Вручную: Python и Qt
 
 Рекомендуется современный Python 3.
 
@@ -254,6 +302,8 @@ python web_server.py
 | `GET /api/status?since=N`            | статистика + новые строки журнала   |
 | `GET /api/report?format=json\|csv`   | скачать отчёт                       |
 | `GET /api/ping?host=&port=&version=` | Server List Ping (MOTD, онлайн, …)  |
+| `GET /api/version?check=1`           | текущая версия и наличие обновлений |
+| `POST /api/update`                   | применить обновление (при --allow-update) |
 
 ---
 

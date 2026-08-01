@@ -11,6 +11,7 @@ Minecraft-сервера с графическим интерфейсом на Q
     protocol  -- реализация клиентской части протокола Minecraft (handshake/login)
     status    -- Server List Ping (MOTD, онлайн, версия, задержка)
     engine    -- Qt-независимое ядро теста (потоки, статистика, ramp-up)
+    updater   -- самообновление через git (для веб-сервера и скриптов)
     qtcompat  -- слой совместимости биндингов Qt (PyQt5 -> PyQt4)
     tester    -- Qt-обёртка (QThread) над движком для десктопного GUI
     gui       -- графический интерфейс (тёмная тема, поля ввода, журнал, статистика)
@@ -25,5 +26,6 @@ Minecraft-сервера с графическим интерфейсом на Q
 
 __version__ = "1.0.0"
 __all__ = [
-    "config", "logger", "protocol", "status", "engine", "qtcompat", "tester", "gui",
+    "config", "logger", "protocol", "status", "engine", "updater",
+    "qtcompat", "tester", "gui",
 ]

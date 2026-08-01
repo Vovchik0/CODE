@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "minecraft-load-tester"
+version = "1.1.0"
+description = "Нагрузочное тестирование собственного Minecraft-сервера (GUI PyQt5/PyQt4 + мобильный веб-интерфейс)."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Vovchik0" }]
+keywords = ["minecraft", "load-testing", "stress-test", "pyqt", "self-hosted"]
+# Ядро (движок, протокол, статус, веб-сервер) работает на стандартной библиотеке.
+dependencies = []
+
+[project.optional-dependencies]
+gui = ["PyQt5>=5.12"]     # десктопный интерфейс
+dev = ["pytest"]          # тесты
+
+[project.scripts]
+mc-load-tester = "main:main"          # десктопный GUI
+mc-load-tester-web = "web_server:main"  # веб-сервер (телефон/браузер)
+
+[tool.setuptools]
+py-modules = ["main", "web_server"]
+packages = ["mc_load_tester"]
